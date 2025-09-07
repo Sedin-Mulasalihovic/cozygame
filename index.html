@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Herbst Cozy Game Mobile 🍁📱</title>
+<style>
+  html, body {margin:0; padding:0; width:100%; height:100%; font-family:sans-serif; overflow:hidden; background:#fff8f0;}
+  canvas {display:block;}
+  #startScreen {
+    position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; flex-direction:column;
+    background:rgba(255,248,240,0.95); transition:opacity 1s ease;
+  }
+  #startScreen h1 { color:#8b4513; font-size:5vw; margin-bottom:5vh; text-align:center;}
+  #startButton { padding:3vh 6vw; font-size:4vw; border:none; border-radius:1vw; background:#deb887; color:#5a2e0f; cursor:pointer; transition:transform 0.2s, background 0.3s;}
+  #startButton:active { transform:scale(0.95);}
+</style>
+</head>
+<body>
+<div id="startScreen">
+  <h1>🍁 Herbst Cozy Game 🍂</h1>
+  <button id="startButton">Start</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+let width=window.innerWidth,height=window.innerHeight;canvas.width=width;canvas.height=height;
+
+const startScreen=document.getElementById("startScreen");
+const startButton=document.getElementById("startButton");
+let gameStarted=false,score=0,isNight=false,leaves=[],particles=[];
+const basket={x:width/2,y:height*0.88,width:width*0.2,height:height*0.08,wobble:0,wobbleDir:0};
+let dayNightTransition=0,transitionSpeed=0.01;
+const leafColorsDay=["#d2691e","#ff7f50","#ffa500","#b22222","#8b4513"];
+const leafColorsNight=["#8B0000","#A0522D","#CD5C5C","#800000","#B22222"];
+let wind=0,windChangeSpeed=0.002;
+
+const stars=[];for(let i=0;i<50;i++)stars.push({x:Math.random()*width,y:Math.random()*height*0.4,radius:Math.random()*2+1});
+
+const treeCount=10,trees=[];for(let i=0;i<treeCount;i++){const x=Math.random()*(width-50),h=height*0.14+Math.random()*height*0.1;const tree={x,y:height*0.94-h,width:width*0.04+Math.random()*width*0.02,height:h,leaves:[]};const leafNum=15+Math.floor(Math.random()*10);for(let j=0;j<leafNum;j++){const offsetX=Math.random()*width*0.05-width*0.025,offsetY=Math.random()*height*0.05-height*0.025;const colorOptions=["#228B22","#FFD700","#A0522D"];const color=colorOptions[Math.floor(Math.random()*colorOptions.length)];const sway=Math.random()*Math.PI*2,swaySpeed=(Math.random()-0.5)*0.02;tree.leaves.push({x:offsetX,y:offsetY,color,sway,swaySpeed});}trees.push(tree);}
+
+window.addEventListener("resize",()=>{width=window.innerWidth;height=window.innerHeight;canvas.width=width;canvas.height=height; basket.y=height*0.88;});
+
+canvas.addEventListener("mousemove",e=>{basket.x=e.clientX-basket.width/2;});
+
+// Touch control
+canvas.addEventListener("touchmove", e=>{basket.x=e.touches[0].clientX-basket.width/2; e.preventDefault();},{passive:false});
+
+startButton.addEventListener("click",()=>{startScreen.style.opacity="0";setTimeout(()=>{startScreen.style.display="none";gameStarted=true;},1000);});
+
+function createLeaf(){const x=Math.random()*(width-30);const speed=0.5+Math.random()*1.2;const color=isNight?leafColorsNight[Math.floor(Math.random()*leafColorsNight.length)]:leafColorsDay[Math.floor(Math.random()*leafColorsDay.length)];const rotation=Math.random()*Math.PI*2,rotationSpeed=(Math.random()-0.5)*0.05,swaySpeed=(Math.random()-0.5)*0.05,driftSpeed=(Math.random()-0.5)*0.2;leaves.push({x,y:-20,speed,color,rotation,rotationSpeed,sway:0,swaySpeed,driftSpeed,caught:false});}
+
+function createMagicParticle(){const x=Math.random()*width,y=Math.random()*height/2,radius=Math.random()*3+1,speed=0.1+Math.random()*0.3,drift=(Math.random()-0.5)*0.2;const color=["#FFD700","#FFA500","#FFB347","#F4A460"][Math.floor(Math.random()*4)],sway=Math.random()*Math.PI*2,swaySpeed=(Math.random()-0.5)*0.02,pulse=Math.random()*0.5+0.5;particles.push({x,y,radius,speed,drift,color,sway,swaySpeed,pulse,pulseDir:1});}
+
+function interpolateColor(c1,c2,f){const C1=parseInt(c1.slice(1),16),C2=parseInt(c2.slice(1),16),r=Math.round(((C1>>16)*(1-f))+((C2>>16)*f)),g=Math.round((((C1>>8)&0xff)*(1-f))+(((C2>>8)&0xff)*f)),b=Math.round(((C1&0xff)*(1-f))+((C2&0xff)*f));return`rgb(${r},${g},${b})`; }
+
+function drawBackground(){const dayColor="#FFDAB9",nightColor="#1e1e3f",currentColor=interpolateColor(dayColor,nightColor,dayNightTransition);ctx.fillStyle=currentColor;ctx.fillRect(0,0,width,height);if(dayNightTransition>0.5){ctx.fillStyle="#fff";for(let star of stars){ctx.beginPath();ctx.arc(star.x,star.y,star.radius,0,Math.PI*2);ctx.fill();}}ctx.beginPath();ctx.arc(width*0.9,height*0.1,width*0.06,0,Math.PI*2);ctx.fillStyle=interpolateColor("#FFD700","#fdf9c3",dayNightTransition);ctx.fill();for(let tree of trees){ctx.fillStyle="#8B4513";ctx.fillRect(tree.x,tree.y,tree.width/5,tree.height);for(let leaf of tree.leaves){leaf.sway+=leaf.swaySpeed;ctx.fillStyle=leaf.color;ctx.beginPath();ctx.ellipse(tree.x+tree.width/10+leaf.x+Math.sin(leaf.sway)*3+wind*3,tree.y+leaf.y,width*0.015,height*0.015,0,0,Math.PI*2);ctx.fill();}}ctx.fillStyle=interpolateColor("#c97c5d","#333",dayNightTransition);ctx.fillRect(0,height*0.94,width,height*0.06);}
+
+function drawBasket(){const wobbleX=Math.sin(basket.wobble)*5,wobbleY=Math.sin(basket.wobble*2)*3;ctx.fillStyle="#8b5e3c";ctx.fillRect(basket.x+wobbleX,basket.y+wobbleY,basket.width,basket.height);ctx.fillStyle="#deb887";ctx.fillRect(basket.x+wobbleX,basket.y+wobbleY,basket.width,basket.height*0.25);if(basket.wobbleDir>0){basket.wobble+=0.3;if(basket.wobble>Math.PI)basket.wobbleDir=0;}else if(basket.wobble>0){basket.wobble-=0.05;}}
+
+function drawLeaves(){for(let leaf of leaves){leaf.sway+=leaf.swaySpeed;leaf.x+=leaf.driftSpeed+wind;ctx.save();ctx.translate(leaf.x+15+Math.sin(leaf.sway)*10,leaf.y+15);ctx.rotate(leaf.rotation);ctx.fillStyle=leaf.color;ctx.beginPath();ctx.ellipse(0,0,width*0.03,height*0.015,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#8b4513";ctx.stroke();ctx.restore();}}
+
+function drawParticles(){for(let p of particles){p.y+=p.speed;p.x+=p.drift+wind*0.5;p.sway+=p.swaySpeed;if(p.pulseDir>0){p.pulse+=0.01;if(p.pulse>1)p.pulseDir=-1;}else{p.pulse-=0.01;if(p.pulse<0.5)p.pulseDir=1;}ctx.fillStyle=p.color.replace(")",`,${p.pulse})`).replace("rgb","rgba");ctx.beginPath();ctx.arc(p.x+Math.sin(p.sway)*2,p.y+Math.sin(p.sway)*2,p.radius*p.pulse,0,Math.PI*2);ctx.fill();}}
+
+function updateLeaves(){for(let leaf of leaves){leaf.y+=leaf.speed;leaf.rotation+=leaf.rotationSpeed;if(leaf.y+15>basket.y&&leaf.x+15>basket.x&&leaf.x+15<basket.x+basket.width&&!leaf.caught){leaf.caught=true;score++;basket.wobbleDir=1;if(score%100===0)isNight=!isNight;}}for(let i=leaves.length-1;i>=0;i--){if(leaves[i].caught||leaves[i].y>height)leaves.splice(i,1);}if(isNight&&dayNightTransition<1)dayNightTransition+=transitionSpeed;if(!isNight&&dayNightTransition>0)dayNightTransition-=transitionSpeed;if(Math.random()<0.05)createMagicParticle();for(let p of particles){if(p.y>height)p.y=0;}wind+=(Math.random()-0.5)*windChangeSpeed;if(wind>0.5)wind=0.5;if(wind<-0.5)wind=-0.5;}
+
+function drawScore(){ctx.fillStyle=`rgba(${Math.round(139*(1-dayNightTransition)+255*dayNightTransition)},${Math.round(69*(1-dayNightTransition)+255*dayNightTransition)},${Math.round(19*(1-dayNightTransition)+255*dayNightTransition)},1)`;ctx.font=`${Math.floor(width*0.05)}px sans-serif`;ctx.fillText("Blätter gesammelt: "+score,width*0.02,height*0.06);}
+
+function gameLoop(){if(gameStarted){drawBackground();drawBasket();drawLeaves();drawParticles();updateLeaves();drawScore();if(Math.random()<0.015)createLeaf();}requestAnimationFrame(gameLoop);}
+gameLoop();
+</script>
+</body>
+</html>
